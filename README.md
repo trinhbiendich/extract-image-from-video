@@ -1,5 +1,4 @@
-# extract-image-from-video
-extract image from video
+# Extract-image-from-video
 
 ### How to use
 
