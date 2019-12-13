@@ -1,5 +1,5 @@
 #!/usr/bin/python
-#python setup.py -i /media/DATA/slide-button-not-working.mp4 -f 11999 -t 50 -s /media/DATA/testpics/
+#python setup.py -p /media/DATA/slide-button-not-working.mp4 -f 11999 -t 50 -s /media/DATA/testpics/
 
 import sys
 import numpy as np
@@ -21,14 +21,18 @@ class FileItem:
     def __repr__(self):
         return " \n\n======== FileItem with hash:%d" % (self.h)
 
+def myFun(x, y):
+    return x + y
+
 def avhash(im):
     if not isinstance(im, Image.Image):
         im = Image.open(im)
     im = im.resize((8, 8), Image.ANTIALIAS).convert('L')
-    avg = reduce(lambda x, y: x + y, im.getdata()) / 64.
-    return reduce(lambda x, (y, z): x | (z << y),
-                  enumerate(map(lambda i: 0 if i < avg else 1, im.getdata())),
-                  0)
+    avg = reduce(myFun, im.getdata()) / 64.
+    myList = enumerate(map(lambda i: 0 if i < avg else 1, im.getdata()))
+    print("myList= ",myList)
+    #avg = reduce(lambda x, y: x + y, im.getdata()) / 64.
+    return reduce(lambda x, y, z: x | (z << y), myList, 0)
 
 def hamming(h1, h2):
     h, d = 0, h1 ^ h2
@@ -36,14 +40,14 @@ def hamming(h1, h2):
         h += 1
         d &= d - 1
     return h
-def tinhToanHamming(item1, item2):
+def calculatorHammingBetweenTwoFrame(item1, item2):
     dist = hamming(item1.h, item2.h)
     return dist
-def tinhToanPercent(item1, item2):
-    dist = tinhToanHamming(item1, item2)
+def calculatorPercentTheSameTwoFrame(item1, item2):
+    dist = calculatorHammingBetweenTwoFrame(item1, item2)
     percent = (64 - dist) * 100 / 64
     return percent
-def layItemCoKichThuocNhoHon(item1, item2):
+def getItemHasMinimumSize(item1, item2):
     if item1.width < item2.width:
         return item1
     else:
@@ -52,7 +56,7 @@ def layItemCoKichThuocNhoHon(item1, item2):
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
     ap.add_argument("-p", "--path", required=True, help="path to input video path")
-    ap.add_argument("-s", "--savepath", required=True, help="path to input video path")
+    ap.add_argument("-s", "--savepath", required=True, help="path of folder will save images")
     ap.add_argument("-f", "--frame", type=float, default=0, help="frame to start taken")
     ap.add_argument("-e", "--extract", type=bool, default=False, help="Enable extract to image")
     ap.add_argument("-d", "--debug", type=bool, default=False, help="enable show image")
@@ -65,7 +69,7 @@ if __name__ == '__main__':
     cap = cv2.VideoCapture(videoPath)
     
     if not cap.isOpened():
-        print "could not open"
+        print ("could not open")
         sys.exit()
     #set video to end, read time length
     totalFrames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -77,10 +81,10 @@ if __name__ == '__main__':
     #width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     #height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     
-    print "totalFrames= ",totalFrames
-    print "timeLength= ",timeLength, "s"
-    print "fps= ",fps, "/s"
-    print "======================================"
+    print ("totalFrames= ",totalFrames)
+    print ("timeLength= ",timeLength, "s")
+    print ("fps= ",fps, "/s")
+    print ("======================================")
     enableWrite = bool(args['extract'])
     frameSequence = int(args['frame'])
     savePath = args['savepath']
@@ -92,20 +96,20 @@ if __name__ == '__main__':
     firstObj = True
     
     
-    print "path:", videoPath
-    print "Save to:", savePath
-    print "Frame started:", frameSequence
-    print "Enable extract:", enableWrite
-    print "Enable debug:", debugImg
-    print "Threshold:", thresholdValue
-    print "Percent the same:", percentSame, "%"
-    print "Remove duplicate:", enableRemoveDuplicate
-    print "======================================\n\n"
+    print ("path:", videoPath)
+    print ("Save to:", savePath)
+    print ("Frame started:", frameSequence)
+    print ("Enable extract:", enableWrite)
+    print ("Enable debug:", debugImg)
+    print ("Threshold:", thresholdValue)
+    print ("Percent the same:", percentSame, "%")
+    print ("Remove duplicate:", enableRemoveDuplicate)
+    print ("======================================\n\n")
     
     indx = frameSequence
     
     if frameSequence >= totalFrames:
-        print "The frame input out of total frame of video", totalFrames
+        print ("The frame input out of total frame of video", totalFrames)
         sys.exit()
     
     cap.set(cv2.CAP_PROP_POS_FRAMES, frameSequence)
@@ -120,7 +124,7 @@ if __name__ == '__main__':
         
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         fm = np.max(cv2.convertScaleAbs(cv2.Laplacian(gray, cv2.CV_64F)))
-		
+        
         if fm < thresholdValue:
             skipByBlur = skipByBlur + 1
             continue
@@ -131,7 +135,7 @@ if __name__ == '__main__':
             hash1 = avhash(pil_im)
             obj = FileItem(hash1)
             if not firstObj:
-                percent = tinhToanPercent(obj, lastedObj)
+                percent = calculatorPercentTheSameTwoFrame(obj, lastedObj)
                 if percent < percentSame:
                     lastedObj = obj
                 if percent >= percentSame:
@@ -141,7 +145,7 @@ if __name__ == '__main__':
                 firstObj = False
 
         if indx % 100 == 0:
-            print "=> ", ((indx*1.0)/totalFrames)*100, "%"
+            print ("=> ", ((indx*1.0)/totalFrames)*100, "%")
         
         if enableWrite:
             fileName = str(indx).zfill(5)
@@ -155,8 +159,8 @@ if __name__ == '__main__':
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
-    print "end frame ", indx
-    print "Skip", skipByBlur, " frames by blur"
+    print ("end frame ", indx)
+    print ("Skip", skipByBlur, " frames by blur")
     # When everything done, release the capture
     cap.release()
     cv2.destroyAllWindows()
