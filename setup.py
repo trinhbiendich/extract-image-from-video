@@ -12,6 +12,7 @@ from os.path import isfile, join, abspath
 import imghdr
 import uuid
 import shutil
+import functools
 
 class FileItem:
     def __init__(self):
@@ -21,18 +22,16 @@ class FileItem:
     def __repr__(self):
         return " \n\n======== FileItem with hash:%d" % (self.h)
 
-def myFun(x, y):
-    return x + y
+def bitLeftShift(x, e):
+    y, z = e
+    return x | (y << z)
 
 def avhash(im):
     if not isinstance(im, Image.Image):
         im = Image.open(im)
     im = im.resize((8, 8), Image.ANTIALIAS).convert('L')
-    avg = reduce(myFun, im.getdata()) / 64.
-    myList = enumerate(map(lambda i: 0 if i < avg else 1, im.getdata()))
-    print("myList= ",myList)
-    #avg = reduce(lambda x, y: x + y, im.getdata()) / 64.
-    return reduce(lambda x, y, z: x | (z << y), myList, 0)
+    avg = functools.reduce(lambda x,y : x + y, im.getdata()) / 64.
+    return functools.reduce(bitLeftShift, enumerate(map(lambda i: 0 if i < avg else 1, im.getdata())), 0)
 
 def hamming(h1, h2):
     h, d = 0, h1 ^ h2
@@ -92,7 +91,6 @@ if __name__ == '__main__':
     enableRemoveDuplicate = bool(args['removeduplicate'])
     thresholdValue = float(args["threshold"])
     percentSame = int(float(args['percentsame']))
-    objs = []
     firstObj = True
     
     
@@ -118,13 +116,12 @@ if __name__ == '__main__':
     while(indx < totalFrames):
         # Capture frame-by-frame
         ret, frame = cap.read()
-        
         # Display the resulting frame
         indx = int(cap.get(cv2.CAP_PROP_POS_FRAMES))
-        
+
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         fm = np.max(cv2.convertScaleAbs(cv2.Laplacian(gray, cv2.CV_64F)))
-        
+
         if fm < thresholdValue:
             skipByBlur = skipByBlur + 1
             continue
@@ -151,7 +148,7 @@ if __name__ == '__main__':
             fileName = str(indx).zfill(5)
             #cv2.imwrite(savePath + fileName + '.png', frame, [int(cv2.IMWRITE_PNG_COMPRESSION), 9])
             cv2.imwrite(savePath + fileName + '.png', frame)
-        
+
         if debugImg:
             text = "quality"
             cv2.putText(frame, "{}: {:.2f}".format(text, fm), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 3)
